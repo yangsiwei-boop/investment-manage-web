@@ -152,6 +152,19 @@ function formatDateTime(dt: string | null | undefined) {
   if (!dt) return '从未'
   return dt.substring(0, 16).replace('T', ' ')
 }
+
+const viewUser = ref<UserInfo | null>(null)
+const viewDialogVisible = ref(false)
+
+function handleView(user: UserInfo) {
+  viewUser.value = user
+  viewDialogVisible.value = true
+}
+
+function handleEdit(user: UserInfo) {
+  viewUser.value = user
+  viewDialogVisible.value = true
+}
 </script>
 
 <template>
@@ -253,8 +266,8 @@ function formatDateTime(dt: string | null | undefined) {
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <template v-if="row.status === 'ACTIVE'">
-              <el-button type="primary" link size="small"><el-icon><View /></el-icon></el-button>
-              <el-button type="primary" link size="small"><el-icon><Edit /></el-icon></el-button>
+              <el-button type="primary" link size="small" @click="handleView(row)"><el-icon><View /></el-icon></el-button>
+              <el-button type="primary" link size="small" @click="handleEdit(row)"><el-icon><Edit /></el-icon></el-button>
               <el-button type="danger" link size="small" @click="handleStatusChange(row, 'BANNED')">
                 <el-icon><CloseBold /></el-icon>
               </el-button>
@@ -263,7 +276,7 @@ function formatDateTime(dt: string | null | undefined) {
               <el-button type="success" link size="small" @click="handleStatusChange(row, 'ACTIVE')">
                 <el-icon><Select /></el-icon>
               </el-button>
-              <el-button type="primary" link size="small"><el-icon><View /></el-icon></el-button>
+              <el-button type="primary" link size="small" @click="handleView(row)"><el-icon><View /></el-icon></el-button>
               <el-button type="danger" link size="small" @click="handleDelete(row)">
                 <el-icon><Delete /></el-icon>
               </el-button>
@@ -272,7 +285,7 @@ function formatDateTime(dt: string | null | undefined) {
               <el-button type="success" link size="small" @click="handleStatusChange(row, 'ACTIVE')">
                 <el-icon><Select /></el-icon>
               </el-button>
-              <el-button type="primary" link size="small"><el-icon><View /></el-icon></el-button>
+              <el-button type="primary" link size="small" @click="handleView(row)"><el-icon><View /></el-icon></el-button>
               <el-button type="danger" link size="small" @click="handleDelete(row)">
                 <el-icon><Delete /></el-icon>
               </el-button>
@@ -294,6 +307,35 @@ function formatDateTime(dt: string | null | undefined) {
         @size-change="handleSizeChange"
       />
     </div>
+
+    <!-- 用户详情弹窗 -->
+    <el-dialog v-model="viewDialogVisible" title="用户详情" width="520px">
+      <template v-if="viewUser">
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="用户ID">{{ viewUser.id }}</el-descriptions-item>
+          <el-descriptions-item label="手机号">{{ viewUser.phone }}</el-descriptions-item>
+          <el-descriptions-item label="昵称">{{ viewUser.nickname || '未设置' }}</el-descriptions-item>
+          <el-descriptions-item label="真实姓名">{{ viewUser.realName || '未设置' }}</el-descriptions-item>
+          <el-descriptions-item label="邮箱">{{ viewUser.email || '未设置' }}</el-descriptions-item>
+          <el-descriptions-item label="用户类型">
+            <span :class="getTypeBadgeClass(viewUser.userType)">
+              {{ viewUser.userType === 'INVESTOR' ? '投资人' : viewUser.userType === 'ENTREPRENEUR' ? '融资用户' : viewUser.userType }}
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item label="账号状态">
+            <span :class="getStatusBadgeClass(viewUser.status)">{{ getStatusLabel(viewUser.status) }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="实名认证">
+            <span :class="getVerifyBadgeClass(viewUser.isVerified)">{{ viewUser.isVerified ? '已认证' : '未认证' }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="注册时间">{{ formatDateTime(viewUser.createdAt) }}</el-descriptions-item>
+          <el-descriptions-item label="最后登录">{{ formatDateTime(viewUser.lastLoginAt) }}</el-descriptions-item>
+        </el-descriptions>
+      </template>
+      <template #footer>
+        <el-button @click="viewDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 

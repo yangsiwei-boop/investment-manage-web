@@ -7,6 +7,7 @@ import type { DashboardData } from '@/types'
 const router = useRouter()
 const stats = ref<DashboardData | null>(null)
 const loading = ref(true)
+const showAlert = ref(true)
 
 onMounted(async () => {
   try {
@@ -55,7 +56,7 @@ const quickActions = [
     </div>
 
     <!-- 待处理提醒 -->
-    <div class="alert-box">
+    <div class="alert-box" v-if="showAlert">
       <div class="alert-content">
         <el-icon :size="20" class="alert-icon"><WarningFilled /></el-icon>
         <div class="alert-text">
@@ -65,7 +66,7 @@ const quickActions = [
       </div>
       <div class="alert-actions">
         <el-button type="primary" size="small" @click="router.push('/verification')">立即处理</el-button>
-        <el-button size="small">稍后提醒</el-button>
+        <el-button size="small" @click="showAlert = false">稍后处理</el-button>
       </div>
     </div>
 

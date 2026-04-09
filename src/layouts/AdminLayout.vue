@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { ElMessageBox } from 'element-plus'
+import { getDashboard } from '@/api/statistics'
+import { changePasswordApi } from '@/api/auth'
+import { ElMessageBox, ElMessage } from 'element-plus'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
 const sidebarCollapsed = ref(false)
+const pendingVerification = ref(0)
+const pendingApplication = ref(0)
+const notificationCount = computed(() => pendingVerification.value + pendingApplication.value)
 
 const sidebarMenus = [
   {
@@ -21,7 +26,7 @@ const sidebarMenus = [
     group: '用户管理',
     items: [
       { path: '/users', title: '用户列表', icon: 'User' },
-      { path: '/verification', title: '实名审核', icon: 'Stamp', badge: 12 },
+      { path: '/verification', title: '实名审核', icon: 'Stamp' },
       { path: '/permission', title: '权限管理', icon: 'Lock' },
     ],
   },
@@ -35,6 +40,16 @@ const sidebarMenus = [
 
 const displayName = computed(() => userStore.getDisplayName())
 
+onMounted(async () => {
+  try {
+    const { data } = await getDashboard()
+    pendingVerification.value = data.data.pendingVerificationCount
+    pendingApplication.value = data.data.pendingApplicationCount
+  } catch {
+    // ignore
+  }
+})
+
 function handleCommand(command: string) {
   if (command === 'logout') {
     ElMessageBox.confirm('确定退出登录？', '提示', {
@@ -45,6 +60,42 @@ function handleCommand(command: string) {
       userStore.clearAuth()
       router.push('/login')
     }).catch(() => {})
+  } else if (command === 'profile') {
+    profileVisible.value = true
+  } else if (command === 'password') {
+    passwordVisible.value = true
+  }
+}
+
+const profileVisible = ref(false)
+const passwordVisible = ref(false)
+const passwordLoading = ref(false)
+const passwordForm = ref({ oldPassword: '', newPassword: '', confirmPassword: '' })
+
+async function handleChangePassword() {
+  const { oldPassword, newPassword, confirmPassword } = passwordForm.value
+  if (!oldPassword || !newPassword) {
+    ElMessage.warning('请填写完整')
+    return
+  }
+  if (newPassword.length < 6) {
+    ElMessage.warning('新密码不少于6位')
+    return
+  }
+  if (newPassword !== confirmPassword) {
+    ElMessage.warning('两次密码输入不一致')
+    return
+  }
+  passwordLoading.value = true
+  try {
+    await changePasswordApi({ oldPassword, newPassword })
+    ElMessage.success('密码修改成功')
+    passwordVisible.value = false
+    passwordForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' }
+  } catch {
+    // error handled by interceptor
+  } finally {
+    passwordLoading.value = false
   }
 }
 
@@ -67,9 +118,27 @@ function toggleSidebar() {
         </div>
       </div>
       <div class="header-right">
-        <el-badge :value="3" :max="99" class="notification-badge">
-          <el-icon :size="20" class="header-icon"><Bell /></el-icon>
-        </el-badge>
+        <el-popover placement="bottom-end" :width="300" trigger="click">
+          <template #reference>
+            <el-badge :value="notificationCount" :max="99" :hidden="notificationCount === 0" class="notification-badge">
+              <el-icon :size="20" class="header-icon"><Bell /></el-icon>
+            </el-badge>
+          </template>
+          <div class="notification-panel">
+            <div class="notification-title">待处理事项</div>
+            <div v-if="notificationCount === 0" class="notification-empty">暂无待处理事项</div>
+            <div v-else class="notification-list">
+              <div v-if="pendingVerification > 0" class="notification-item" @click="router.push('/verification')">
+                <el-icon color="#f59e0b"><Stamp /></el-icon>
+                <span>{{ pendingVerification }} 个实名认证申请待审核</span>
+              </div>
+              <div v-if="pendingApplication > 0" class="notification-item">
+                <el-icon color="#3b82f6"><Document /></el-icon>
+                <span>{{ pendingApplication }} 个BP获取申请待审核</span>
+              </div>
+            </div>
+          </div>
+        </el-popover>
         <el-dropdown trigger="click" @command="handleCommand">
           <div class="user-info">
             <el-avatar :size="32" class="user-avatar">{{ displayName.charAt(0) }}</el-avatar>
@@ -102,7 +171,7 @@ function toggleSidebar() {
             >
               <el-icon><component :is="item.icon" /></el-icon>
               <span class="menu-title">{{ item.title }}</span>
-              <el-badge v-if="item.badge" :value="item.badge" class="menu-badge" />
+              <el-badge v-if="item.path === '/verification' && pendingVerification > 0" :value="pendingVerification" class="menu-badge" />
             </router-link>
           </div>
         </div>
@@ -113,6 +182,39 @@ function toggleSidebar() {
         <router-view />
       </main>
     </div>
+
+    <!-- 个人中心弹窗 -->
+    <el-dialog v-model="profileVisible" title="个人中心" width="480px">
+      <el-descriptions :column="1" border v-if="userStore.userInfo">
+        <el-descriptions-item label="用户ID">{{ userStore.userInfo.id }}</el-descriptions-item>
+        <el-descriptions-item label="手机号">{{ userStore.userInfo.phone }}</el-descriptions-item>
+        <el-descriptions-item label="邮箱">{{ userStore.userInfo.email || '未设置' }}</el-descriptions-item>
+        <el-descriptions-item label="用户类型">{{ userStore.userInfo.userType }}</el-descriptions-item>
+        <el-descriptions-item label="认证状态">{{ userStore.userInfo.isVerified ? '已认证' : '未认证' }}</el-descriptions-item>
+      </el-descriptions>
+      <template #footer>
+        <el-button @click="profileVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 修改密码弹窗 -->
+    <el-dialog v-model="passwordVisible" title="修改密码" width="420px">
+      <el-form :model="passwordForm" label-width="80px">
+        <el-form-item label="旧密码">
+          <el-input v-model="passwordForm.oldPassword" type="password" show-password placeholder="请输入旧密码" />
+        </el-form-item>
+        <el-form-item label="新密码">
+          <el-input v-model="passwordForm.newPassword" type="password" show-password placeholder="请输入新密码（至少6位）" />
+        </el-form-item>
+        <el-form-item label="确认密码">
+          <el-input v-model="passwordForm.confirmPassword" type="password" show-password placeholder="请再次输入新密码" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="passwordVisible = false">取消</el-button>
+        <el-button type="primary" :loading="passwordLoading" @click="handleChangePassword">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -303,5 +405,43 @@ function toggleSidebar() {
 
 .notification-badge {
   line-height: 1;
+}
+
+.notification-panel {
+  margin: -12px;
+}
+
+.notification-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.notification-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.notification-list {
+  padding: 8px 0;
+}
+
+.notification-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #475569;
+  transition: background 0.2s;
+}
+
+.notification-item:hover {
+  background: #f8fafc;
 }
 </style>
