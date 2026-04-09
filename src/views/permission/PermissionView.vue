@@ -1,21 +1,18 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { getRoleList, getRoleDetail, updateRole, createRole, deleteRole } from '@/api/role'
-import type { RoleInfo, PermissionInfo, RoleUser } from '@/types'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { getRoleList, updateRole, createRole, deleteRole } from '@/api/role'
+import type { RoleInfo, PermissionInfo } from '@/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const loading = ref(false)
 const roles = ref<RoleInfo[]>([])
 const selectedRole = ref<RoleInfo | null>(null)
-const permissions = ref<PermissionInfo[]>([])
-const roleUsers = ref<RoleUser[]>([])
 
 const roleIcons: Record<string, string> = {
+  admin: '🔧',
   investor: '💼',
   entrepreneur: '🏢',
-  vip_investor: '⭐',
-  admin: '🔧',
-  disabled: '🚫',
+  guest: '📋',
 }
 
 const newRoleDialog = ref(false)
@@ -25,9 +22,7 @@ const newRoleForm = reactive({
   description: '',
 })
 
-onMounted(async () => {
-  await loadRoles()
-})
+onMounted(loadRoles)
 
 async function loadRoles() {
   loading.value = true
@@ -42,29 +37,33 @@ async function loadRoles() {
   }
 }
 
-async function selectRole(role: RoleInfo) {
+function selectRole(role: RoleInfo) {
   selectedRole.value = role
-  try {
-    const { data } = await getRoleDetail(role.id)
-    const detail = data.data
-    permissions.value = detail.permissions || []
-    roleUsers.value = detail.users || []
-  } catch {
-    permissions.value = []
-    roleUsers.value = []
-  }
 }
 
-function getPermissionGroups() {
-  const viewPerms = permissions.value.filter((_, i) => i < 4)
-  const actionPerms = permissions.value.filter((_, i) => i >= 4 && i < 8)
-  const restrictPerms = permissions.value.filter((_, i) => i >= 8)
-  return [
-    { title: '查看权限', items: viewPerms },
-    { title: '操作权限', items: actionPerms },
-    { title: '限制权限', items: restrictPerms },
-  ]
-}
+// 按 module 分组权限
+const permissionGroups = computed(() => {
+  if (!selectedRole.value?.permissions) return []
+  const groupMap = new Map<string, PermissionInfo[]>()
+  for (const perm of selectedRole.value.permissions) {
+    const mod = perm.module || '其他'
+    if (!groupMap.has(mod)) groupMap.set(mod, [])
+    groupMap.get(mod)!.push(perm)
+  }
+  const moduleLabels: Record<string, string> = {
+    user: '用户管理',
+    project: '项目管理',
+    teaser: 'Teaser管理',
+    application: '申请管理',
+    qa: '问答管理',
+    admin: '后台管理',
+  }
+  return Array.from(groupMap.entries()).map(([mod, items]) => ({
+    key: mod,
+    title: moduleLabels[mod] || mod,
+    items,
+  }))
+})
 
 async function handlePermissionChange(perm: PermissionInfo, enabled: boolean) {
   perm.isEnabled = enabled
@@ -74,7 +73,7 @@ async function handleSave() {
   if (!selectedRole.value) return
   try {
     await updateRole(selectedRole.value.id, {
-      permissions: permissions.value.map(p => ({ ...p })),
+      permissions: selectedRole.value.permissions.map(p => ({ ...p })),
     })
     ElMessage.success('保存成功')
   } catch {
@@ -115,10 +114,6 @@ async function handleDeleteRole() {
     // cancelled
   }
 }
-
-async function handleRemoveUser(user: RoleUser) {
-  ElMessage.info(`已移除用户 ${user.realName}`)
-}
 </script>
 
 <template>
@@ -148,9 +143,8 @@ async function handleRemoveUser(user: RoleUser) {
             <div class="role-icon">{{ roleIcons[role.roleCode] || '📋' }}</div>
             <div class="role-info">
               <div class="role-name">{{ role.roleName }}</div>
-              <div class="role-count">{{ role.usersCount }}人</div>
+              <div class="role-count">{{ role.permissions?.length || 0 }} 个权限</div>
             </div>
-            <div class="role-desc">{{ role.description }}</div>
           </div>
         </div>
       </div>
@@ -162,38 +156,25 @@ async function handleRemoveUser(user: RoleUser) {
           <span class="role-desc-tag">{{ selectedRole.description }}</span>
         </div>
 
-        <!-- 权限组 -->
-        <div v-for="group in getPermissionGroups()" :key="group.title" class="permission-group">
+        <!-- 按 module 分组展示权限 -->
+        <div v-for="group in permissionGroups" :key="group.key" class="permission-group">
           <div class="group-title">{{ group.title }}</div>
           <div class="permission-list">
             <div v-for="perm in group.items" :key="perm.id" class="permission-item">
-              <span class="perm-name">{{ perm.permissionName }}</span>
+              <div class="perm-info">
+                <span class="perm-name">{{ perm.permissionName }}</span>
+                <span class="perm-desc">{{ perm.description }}</span>
+              </div>
               <el-switch v-model="perm.isEnabled" @change="(val: boolean) => handlePermissionChange(perm, val)" />
             </div>
           </div>
         </div>
 
-        <!-- 角色中的用户 -->
-        <div class="users-section">
-          <div class="group-title">角色中的用户</div>
-          <p class="users-tip">共{{ selectedRole.usersCount }}人，显示前20人</p>
-          <div class="user-tags">
-            <el-tag
-              v-for="user in roleUsers"
-              :key="user.id"
-              closable
-              @close="handleRemoveUser(user)"
-              class="user-tag"
-            >
-              {{ user.realName }}
-            </el-tag>
-          </div>
-        </div>
+        <el-empty v-if="permissionGroups.length === 0" description="该角色暂无权限配置" />
 
         <!-- 操作按钮 -->
         <div class="detail-actions">
           <el-button type="primary" @click="handleSave">保存更改</el-button>
-          <el-button @click="">复制角色</el-button>
           <el-button type="danger" @click="handleDeleteRole" :disabled="selectedRole.isSystem">删除角色</el-button>
         </div>
       </div>
@@ -252,7 +233,7 @@ async function handleRemoveUser(user: RoleUser) {
 }
 
 .role-panel {
-  width: 350px;
+  width: 300px;
   flex-shrink: 0;
   background: #ffffff;
   border-radius: 12px;
@@ -321,16 +302,6 @@ async function handleRemoveUser(user: RoleUser) {
   margin-top: 2px;
 }
 
-.role-desc {
-  font-size: 12px;
-  color: #94a3b8;
-  text-align: right;
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .detail-panel {
   flex: 1;
   background: #ffffff;
@@ -363,6 +334,8 @@ async function handleRemoveUser(user: RoleUser) {
   font-weight: 600;
   color: #1e293b;
   margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .permission-list {
@@ -380,31 +353,20 @@ async function handleRemoveUser(user: RoleUser) {
   border-radius: 8px;
 }
 
+.perm-info {
+  display: flex;
+  flex-direction: column;
+}
+
 .perm-name {
   font-size: 14px;
   color: #475569;
 }
 
-.users-section {
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid #e2e8f0;
-}
-
-.users-tip {
-  font-size: 13px;
+.perm-desc {
+  font-size: 12px;
   color: #94a3b8;
-  margin-bottom: 12px;
-}
-
-.user-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.user-tag {
-  font-size: 13px;
+  margin-top: 2px;
 }
 
 .detail-actions {

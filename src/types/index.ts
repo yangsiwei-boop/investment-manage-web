@@ -76,16 +76,20 @@ export interface RoleInfo {
   users?: RoleUser[]
 }
 
-// 权限信息
+// 权限信息 (后端实际返回)
 export interface PermissionInfo {
   id: number
   permissionCode: string
   permissionName: string
   description?: string | null
   module?: string | null
-  permissionType: 'menu' | 'button' | 'api' | 'data'
-  isEnabled: boolean
+  parentId?: number | null
+  permissionType: string
+  resourcePath?: string | null
+  httpMethods?: string[] | null
   sortOrder: number
+  isEnabled: boolean
+  icon?: string | null
 }
 
 // 角色中的用户
@@ -109,6 +113,41 @@ export interface DashboardData {
   totalViewCount: number
   totalFavoriteCount: number
   activeUserCount: number
+}
+
+// 数据统计 - 后端实际返回结构
+export interface StatisticsOverview {
+  totalUsers: number
+  newUsersToday: number
+  newUsersThisWeek: number
+  newUsersThisMonth: number
+  totalProjects: number
+  newProjectsToday: number
+  totalTeasers: number
+  publishedTeasers: number
+  totalViews: number
+  totalFavorites: number
+  totalApplications: number
+  pendingApplications: number
+}
+
+export interface TrendItem {
+  date: string
+  value: number
+}
+
+export interface DistributionItem {
+  name: string
+  value: number
+}
+
+export interface StatisticsData {
+  overview: StatisticsOverview
+  userTrend: TrendItem[]
+  projectTrend: TrendItem[]
+  viewTrend: TrendItem[]
+  industryDistribution: DistributionItem[]
+  stageDistribution: DistributionItem[]
 }
 
 // 登录请求 (文档 §2.1)

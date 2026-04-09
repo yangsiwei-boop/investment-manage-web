@@ -263,32 +263,22 @@ function handleEdit(user: UserInfo) {
             {{ formatDateTime(row.lastLoginAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <template v-if="row.status === 'ACTIVE'">
-              <el-button type="primary" link size="small" @click="handleView(row)"><el-icon><View /></el-icon></el-button>
-              <el-button type="primary" link size="small" @click="handleEdit(row)"><el-icon><Edit /></el-icon></el-button>
-              <el-button type="danger" link size="small" @click="handleStatusChange(row, 'BANNED')">
-                <el-icon><CloseBold /></el-icon>
-              </el-button>
+              <el-tooltip content="查看" placement="top"><el-button type="primary" link size="small" @click="handleView(row)"><el-icon><View /></el-icon></el-button></el-tooltip>
+              <el-tooltip content="编辑" placement="top"><el-button type="primary" link size="small" @click="handleEdit(row)"><el-icon><Edit /></el-icon></el-button></el-tooltip>
+              <el-tooltip content="禁用" placement="top"><el-button type="danger" link size="small" @click="handleStatusChange(row, 'BANNED')"><el-icon><CloseBold /></el-icon></el-button></el-tooltip>
             </template>
             <template v-else-if="row.status === 'PENDING'">
-              <el-button type="success" link size="small" @click="handleStatusChange(row, 'ACTIVE')">
-                <el-icon><Select /></el-icon>
-              </el-button>
-              <el-button type="primary" link size="small" @click="handleView(row)"><el-icon><View /></el-icon></el-button>
-              <el-button type="danger" link size="small" @click="handleDelete(row)">
-                <el-icon><Delete /></el-icon>
-              </el-button>
+              <el-tooltip content="批准" placement="top"><el-button type="success" link size="small" @click="handleStatusChange(row, 'ACTIVE')"><el-icon><Select /></el-icon></el-button></el-tooltip>
+              <el-tooltip content="查看" placement="top"><el-button type="primary" link size="small" @click="handleView(row)"><el-icon><View /></el-icon></el-button></el-tooltip>
+              <el-tooltip content="删除" placement="top"><el-button type="danger" link size="small" @click="handleDelete(row)"><el-icon><Delete /></el-icon></el-button></el-tooltip>
             </template>
             <template v-else>
-              <el-button type="success" link size="small" @click="handleStatusChange(row, 'ACTIVE')">
-                <el-icon><Select /></el-icon>
-              </el-button>
-              <el-button type="primary" link size="small" @click="handleView(row)"><el-icon><View /></el-icon></el-button>
-              <el-button type="danger" link size="small" @click="handleDelete(row)">
-                <el-icon><Delete /></el-icon>
-              </el-button>
+              <el-tooltip content="启用" placement="top"><el-button type="success" link size="small" @click="handleStatusChange(row, 'ACTIVE')"><el-icon><Select /></el-icon></el-button></el-tooltip>
+              <el-tooltip content="查看" placement="top"><el-button type="primary" link size="small" @click="handleView(row)"><el-icon><View /></el-icon></el-button></el-tooltip>
+              <el-tooltip content="删除" placement="top"><el-button type="danger" link size="small" @click="handleDelete(row)"><el-icon><Delete /></el-icon></el-button></el-tooltip>
             </template>
           </template>
         </el-table-column>
