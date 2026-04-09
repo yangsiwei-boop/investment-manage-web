@@ -212,7 +212,6 @@ function toggleSidebar() {
 }
 
 .admin-body {
-  display: flex;
   margin-top: 64px;
   height: calc(100vh - 64px);
 }
@@ -232,6 +231,19 @@ function toggleSidebar() {
 .admin-sidebar.collapsed {
   width: 0;
   overflow: hidden;
+}
+
+.admin-content {
+  margin-left: 260px;
+  min-height: calc(100vh - 64px);
+  background: #f5f7fa;
+  overflow-y: auto;
+  transition: margin-left 0.3s;
+}
+
+.admin-sidebar.collapsed + .admin-content,
+.admin-body:has(.admin-sidebar.collapsed) .admin-content {
+  margin-left: 0;
 }
 
 .sidebar-menu {

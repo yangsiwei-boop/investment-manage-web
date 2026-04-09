@@ -34,11 +34,15 @@ async function handleLogin() {
   loading.value = true
   try {
     const { data } = await loginApi(loginForm)
+    console.log('登录响应:', data)
     userStore.setAuth(data.data.token, data.data.refreshToken, data.data.user)
     ElMessage.success('登录成功')
-    router.push('/dashboard')
-  } catch (error) {
-    // error handled by interceptor
+    await router.push('/dashboard')
+  } catch (error: any) {
+    console.error('登录失败:', error)
+    if (error?.response?.status !== 401) {
+      ElMessage.error(error?.response?.data?.message || '登录失败')
+    }
   } finally {
     loading.value = false
   }
