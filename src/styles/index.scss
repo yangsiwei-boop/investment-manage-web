@@ -1,0 +1,92 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root {
+  --primary-color: #667eea;
+  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --header-bg: #1e293b;
+  --sidebar-width: 260px;
+  --header-height: 64px;
+  --content-bg: #f5f7fa;
+  --card-bg: #ffffff;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --danger-color: #ef4444;
+  --info-color: #3b82f6;
+}
+
+// 状态徽章
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+
+  &--active {
+    background: #dcfce7;
+    color: #166534;
+  }
+  &--pending {
+    background: #fef3c7;
+    color: #92400e;
+  }
+  &--banned, &--inactive {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+  &--verified {
+    background: #dcfce7;
+    color: #166534;
+  }
+  &--unverified {
+    background: #fef3c7;
+    color: #92400e;
+  }
+}
+
+// 用户类型徽章
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+
+  &--investor {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+  &--entrepreneur {
+    background: #fce7f3;
+    color: #9f1239;
+  }
+}
+
+// 滚动条
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
