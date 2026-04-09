@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
-import { getRoleList, updateRole, createRole, deleteRole } from '@/api/role'
+import { getRoleList, getPermissionList, updateRole, createRole, deleteRole } from '@/api/role'
 import type { RoleInfo, PermissionInfo } from '@/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const loading = ref(false)
 const roles = ref<RoleInfo[]>([])
 const selectedRole = ref<RoleInfo | null>(null)
+const allPermissions = ref<PermissionInfo[]>([])
+// 本地编辑状态：记录每个权限ID是否启用
+const enabledPermissionIds = ref<Set<number>>(new Set())
+const hasChanges = ref(false)
 
 const roleIcons: Record<string, string> = {
   admin: '🔧',
@@ -22,15 +26,25 @@ const newRoleForm = reactive({
   description: '',
 })
 
-onMounted(loadRoles)
+onMounted(loadData)
 
-async function loadRoles() {
+async function loadData() {
   loading.value = true
   try {
-    const { data } = await getRoleList()
-    roles.value = data.data
+    const [rolesRes, permsRes] = await Promise.all([
+      getRoleList(),
+      getPermissionList(),
+    ])
+    roles.value = rolesRes.data.data
+    allPermissions.value = permsRes.data.data.sort((a, b) => a.id - b.id)
     if (roles.value.length > 0 && !selectedRole.value) {
       selectRole(roles.value[0])
+    } else if (selectedRole.value) {
+      const updated = roles.value.find(r => r.id === selectedRole.value!.id)
+      if (updated) {
+        selectedRole.value = updated
+        syncLocalState()
+      }
     }
   } finally {
     loading.value = false
@@ -39,13 +53,23 @@ async function loadRoles() {
 
 function selectRole(role: RoleInfo) {
   selectedRole.value = role
+  syncLocalState()
 }
 
-// 按 module 分组权限
+function syncLocalState() {
+  const ids = new Set<number>()
+  if (selectedRole.value?.permissions) {
+    for (const perm of selectedRole.value.permissions) {
+      ids.add(perm.id)
+    }
+  }
+  enabledPermissionIds.value = ids
+  hasChanges.value = false
+}
+
 const permissionGroups = computed(() => {
-  if (!selectedRole.value?.permissions) return []
   const groupMap = new Map<string, PermissionInfo[]>()
-  for (const perm of selectedRole.value.permissions) {
+  for (const perm of allPermissions.value) {
     const mod = perm.module || '其他'
     if (!groupMap.has(mod)) groupMap.set(mod, [])
     groupMap.get(mod)!.push(perm)
@@ -65,17 +89,54 @@ const permissionGroups = computed(() => {
   }))
 })
 
-async function handlePermissionChange(perm: PermissionInfo, enabled: boolean) {
-  perm.isEnabled = enabled
+function isPermissionEnabled(permId: number): boolean {
+  return enabledPermissionIds.value.has(permId)
+}
+
+function handlePermissionToggle(permId: number, enabled: boolean) {
+  const newSet = new Set(enabledPermissionIds.value)
+  if (enabled) {
+    newSet.add(permId)
+  } else {
+    newSet.delete(permId)
+  }
+  enabledPermissionIds.value = newSet
+  hasChanges.value = true
+}
+
+function handleGroupToggle(group: { items: PermissionInfo[] }, enabled: boolean) {
+  const newSet = new Set(enabledPermissionIds.value)
+  for (const perm of group.items) {
+    if (enabled) {
+      newSet.add(perm.id)
+    } else {
+      newSet.delete(perm.id)
+    }
+  }
+  enabledPermissionIds.value = newSet
+  hasChanges.value = true
+}
+
+function isGroupAllEnabled(group: { items: PermissionInfo[] }): boolean {
+  return group.items.every(p => enabledPermissionIds.value.has(p.id))
+}
+
+function isGroupPartialEnabled(group: { items: PermissionInfo[] }): boolean {
+  const count = group.items.filter(p => enabledPermissionIds.value.has(p.id)).length
+  return count > 0 && count < group.items.length
 }
 
 async function handleSave() {
   if (!selectedRole.value) return
   try {
     await updateRole(selectedRole.value.id, {
-      permissions: selectedRole.value.permissions.map(p => ({ ...p })),
-    })
+      roleCode: selectedRole.value.roleCode,
+      roleName: selectedRole.value.roleName,
+      permissionIds: Array.from(enabledPermissionIds.value),
+    } as any)
     ElMessage.success('保存成功')
+    hasChanges.value = false
+    loadData()
   } catch {
     // handled by interceptor
   }
@@ -89,7 +150,7 @@ async function handleCreateRole() {
     newRoleForm.roleName = ''
     newRoleForm.roleCode = ''
     newRoleForm.description = ''
-    loadRoles()
+    loadData()
   } catch {
     // handled
   }
@@ -109,7 +170,7 @@ async function handleDeleteRole() {
     await deleteRole(selectedRole.value.id)
     ElMessage.success('删除成功')
     selectedRole.value = null
-    loadRoles()
+    loadData()
   } catch {
     // cancelled
   }
@@ -152,29 +213,49 @@ async function handleDeleteRole() {
       <!-- 右侧权限详情 -->
       <div class="detail-panel" v-if="selectedRole">
         <div class="detail-header">
-          <h2>{{ selectedRole.roleName }} - 权限配置</h2>
-          <span class="role-desc-tag">{{ selectedRole.description }}</span>
+          <div>
+            <h2>{{ selectedRole.roleName }} - 权限配置</h2>
+            <span class="role-desc-tag">{{ selectedRole.description || '暂无描述' }}</span>
+          </div>
+          <el-tag v-if="hasChanges" type="warning" size="small">有未保存的更改</el-tag>
         </div>
 
-        <!-- 按 module 分组展示权限 -->
+        <div v-if="allPermissions.length === 0" class="empty-tip">
+          暂无可配置的权限，请先在系统中创建权限
+        </div>
+
+        <!-- 按 module 分组展示所有权限 -->
         <div v-for="group in permissionGroups" :key="group.key" class="permission-group">
-          <div class="group-title">{{ group.title }}</div>
+          <div class="group-title">
+            <el-checkbox
+              :model-value="isGroupAllEnabled(group)"
+              :indeterminate="isGroupPartialEnabled(group)"
+              @change="(val: boolean) => handleGroupToggle(group, val)"
+            >
+              {{ group.title }}
+            </el-checkbox>
+            <span class="group-count">{{ group.items.filter(p => enabledPermissionIds.has(p.id)).length }} / {{ group.items.length }}</span>
+          </div>
           <div class="permission-list">
             <div v-for="perm in group.items" :key="perm.id" class="permission-item">
               <div class="perm-info">
                 <span class="perm-name">{{ perm.permissionName }}</span>
-                <span class="perm-desc">{{ perm.description }}</span>
+                <span class="perm-desc">{{ perm.description || perm.permissionCode }}</span>
               </div>
-              <el-switch v-model="perm.isEnabled" @change="(val: boolean) => handlePermissionChange(perm, val)" />
+              <el-switch
+                :model-value="isPermissionEnabled(perm.id)"
+                @change="(val: boolean) => handlePermissionToggle(perm.id, val)"
+              />
             </div>
           </div>
         </div>
 
-        <el-empty v-if="permissionGroups.length === 0" description="该角色暂无权限配置" />
+        <el-empty v-if="permissionGroups.length === 0 && allPermissions.length === 0" description="暂无可配置的权限" />
 
         <!-- 操作按钮 -->
         <div class="detail-actions">
-          <el-button type="primary" @click="handleSave">保存更改</el-button>
+          <el-button type="primary" :disabled="!hasChanges" @click="handleSave">保存更改</el-button>
+          <el-button :disabled="!hasChanges" @click="syncLocalState">撤销更改</el-button>
           <el-button type="danger" @click="handleDeleteRole" :disabled="selectedRole.isSystem">删除角色</el-button>
         </div>
       </div>
@@ -311,6 +392,9 @@ async function handleDeleteRole() {
 }
 
 .detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 24px;
 }
 
@@ -330,12 +414,21 @@ async function handleDeleteRole() {
 }
 
 .group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: 15px;
   font-weight: 600;
   color: #1e293b;
   margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid #f1f5f9;
+}
+
+.group-count {
+  font-size: 12px;
+  font-weight: 400;
+  color: #94a3b8;
 }
 
 .permission-list {
@@ -375,5 +468,11 @@ async function handleDeleteRole() {
   border-top: 1px solid #e2e8f0;
   display: flex;
   gap: 8px;
+}
+
+.empty-tip {
+  text-align: center;
+  color: #94a3b8;
+  padding: 40px 0;
 }
 </style>

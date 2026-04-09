@@ -13,7 +13,7 @@ export function createRole(data: Partial<RoleInfo>) {
   return request.post<ApiResponse<RoleInfo>>('/admin/roles', data)
 }
 
-export function updateRole(id: number, data: Partial<RoleInfo>) {
+export function updateRole(id: number, data: { roleCode?: string; roleName?: string; permissionIds?: number[] }) {
   return request.put<ApiResponse>(`/admin/roles/${id}`, data)
 }
 
