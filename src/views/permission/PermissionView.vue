@@ -230,7 +230,7 @@ async function handleDeleteRole() {
             <el-checkbox
               :model-value="isGroupAllEnabled(group)"
               :indeterminate="isGroupPartialEnabled(group)"
-              @change="(val: boolean) => handleGroupToggle(group, val)"
+              @change="(val: any) => handleGroupToggle(group, !!val)"
             >
               {{ group.title }}
             </el-checkbox>
@@ -244,7 +244,7 @@ async function handleDeleteRole() {
               </div>
               <el-switch
                 :model-value="isPermissionEnabled(perm.id)"
-                @change="(val: boolean) => handlePermissionToggle(perm.id, val)"
+                @change="(val: any) => handlePermissionToggle(perm.id, !!val)"
               />
             </div>
           </div>

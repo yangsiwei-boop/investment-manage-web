@@ -40,7 +40,7 @@ function forceLogout(message = '登录已失效，请重新登录') {
 
 // 响应拦截器
 request.interceptors.response.use(
-  (response) => {
+  (response): any => {
     const data = response.data as ApiResponse
     if (data.code === 200) {
       // 业务成功时重置刷新计数

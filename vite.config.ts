@@ -23,12 +23,15 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
+  build: {
+    outDir: 'inverstmentManage',
+  },
   server: {
     port: 3006,
     open: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://120.24.176.90:28080',
         changeOrigin: true,
       },
     },
