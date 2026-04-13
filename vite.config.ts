@@ -27,7 +27,7 @@ export default defineConfig({
     outDir: 'inverstmentManage',
   },
   server: {
-    port: 3006,
+    port: 3007,
     open: true,
     proxy: {
       '/api': {
