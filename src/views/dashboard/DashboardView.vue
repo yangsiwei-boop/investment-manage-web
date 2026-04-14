@@ -28,7 +28,7 @@ const statCards = [
 const quickActions = [
   { title: '用户管理', desc: '查看和管理平台所有用户，包括投资人和融资用户', icon: 'User', color: '#3b82f6', path: '/users' },
   { title: '实名审核', desc: '审核用户的实名认证材料，包括名片和营业执照', icon: 'Stamp', color: '#10b981', path: '/verification' },
-  { title: '申请审核', desc: '处理投资人提交的BP获取和联系申请', icon: 'Document', color: '#f59e0b', path: '/verification' },
+  { title: '申请审核', desc: '处理投资人提交的BP获取和联系申请', icon: 'Document', color: '#f59e0b', path: '/application' },
   { title: '数据统计', desc: '查看平台运营数据和用户活跃度统计', icon: 'DataAnalysis', color: '#8b5cf6', path: '/statistics' },
 ]
 
@@ -65,7 +65,8 @@ const quickActions = [
         </div>
       </div>
       <div class="alert-actions">
-        <el-button type="primary" size="small" @click="router.push('/verification')">立即处理</el-button>
+        <el-button v-if="stats?.pendingVerificationCount" type="primary" size="small" @click="router.push('/verification')">处理实名认证</el-button>
+        <el-button v-if="stats?.pendingApplicationCount" type="warning" size="small" @click="router.push('/application')">处理BP申请</el-button>
         <el-button size="small" @click="showAlert = false">稍后处理</el-button>
       </div>
     </div>

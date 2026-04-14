@@ -183,3 +183,35 @@ export interface UpdateUserStatusRequest {
   status: string
   reason?: string
 }
+
+// BP申请状态
+export type ApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+
+// BP获取申请信息
+export interface ApplicationInfo {
+  id: number
+  // 申请人信息 (投资人)
+  applicantId: number
+  applicantName?: string | null
+  applicantPhone?: string | null
+  // 被申请项目信息
+  projectId: number
+  projectName: string
+  projectOwnerName?: string | null
+  projectCompanyName?: string | null
+  projectIndustry?: string | null
+  projectStage?: string | null
+  // 申请信息
+  status: ApplicationStatus
+  applyReason?: string | null
+  reviewComment?: string | null
+  reviewerId?: number | null
+  reviewedAt?: string | null
+  createdAt: string
+}
+
+// BP申请审核请求
+export interface ApplicationReviewRequest {
+  approved: boolean
+  comment?: string
+}

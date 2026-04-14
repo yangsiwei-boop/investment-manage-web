@@ -27,6 +27,7 @@ const sidebarMenus = [
     items: [
       { path: '/users', title: '用户列表', icon: 'User' },
       { path: '/verification', title: '实名审核', icon: 'Stamp' },
+      { path: '/application', title: '申请审核', icon: 'Document' },
       { path: '/permission', title: '权限管理', icon: 'Lock' },
     ],
   },
@@ -132,7 +133,7 @@ function toggleSidebar() {
                 <el-icon color="#f59e0b"><Stamp /></el-icon>
                 <span>{{ pendingVerification }} 个实名认证申请待审核</span>
               </div>
-              <div v-if="pendingApplication > 0" class="notification-item">
+              <div v-if="pendingApplication > 0" class="notification-item" @click="router.push('/application')">
                 <el-icon color="#3b82f6"><Document /></el-icon>
                 <span>{{ pendingApplication }} 个BP获取申请待审核</span>
               </div>
@@ -172,6 +173,7 @@ function toggleSidebar() {
               <el-icon><component :is="item.icon" /></el-icon>
               <span class="menu-title">{{ item.title }}</span>
               <el-badge v-if="item.path === '/verification' && pendingVerification > 0" :value="pendingVerification" class="menu-badge" />
+              <el-badge v-if="item.path === '/application' && pendingApplication > 0" :value="pendingApplication" class="menu-badge" />
             </router-link>
           </div>
         </div>

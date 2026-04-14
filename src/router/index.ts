@@ -34,6 +34,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '实名审核', icon: 'Stamp' },
       },
       {
+        path: 'application',
+        name: 'Application',
+        component: () => import('@/views/application/ApplicationView.vue'),
+        meta: { title: '申请审核', icon: 'Document' },
+      },
+      {
         path: 'permission',
         name: 'Permission',
         component: () => import('@/views/permission/PermissionView.vue'),
